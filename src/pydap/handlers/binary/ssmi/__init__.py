@@ -42,14 +42,18 @@ class BinarySsmiHandler(BaseHandler):
                 'add_offset' : 0,
                 'scale_factor' : 6,
                 '_FillValue' : 254,
-                'units' : 'minutes' },
+                'units' : 'minutes',
+                'coordinates': 'latitude longitude'
+            },
             {
                 'name' : 'wspd',
                 'long_name' : '10 meter Surface Wind Speed',
                 'add_offset' : 0,
                 'scale_factor' : 0.2,
                 '_FillValue' : 254,
-                'units' : 'm/sec'
+                'units' : 'm/sec',
+                'coordinates': 'latitude longitude'
+
             },
             {
                 'name' : 'vapor',
@@ -57,7 +61,9 @@ class BinarySsmiHandler(BaseHandler):
                 'add_offset' : 0,
                 'scale_factor' : 0.3,
                 '_FillValue' : 254,
-                'units' : 'mm'
+                'units' : 'mm',
+                'coordinates': 'latitude longitude'
+
 
             },
             {
@@ -66,8 +72,8 @@ class BinarySsmiHandler(BaseHandler):
                 'add_offset' : -0.05,
                 'scale_factor' : 0.01,
                 '_FillValue' : 254,
-                'units' : 'mm'
-
+                'units' : 'mm',
+                'coordinates': 'latitude longitude'
             },
             {
                 'name' : 'rain',
@@ -75,21 +81,37 @@ class BinarySsmiHandler(BaseHandler):
                 'add_offset' : 0,
                 'scale_factor' : 0.1,
                 '_FillValue' : 254,
-                'units' : 'mm/hr'
+                'units' : 'mm/hr',
+                'coordinates': 'latitude longitude'
+
+            },
+            {
+                'name' : 'latitude',
+                'long_name' : 'latitude',
+                'add_offset' : 0,
+                'scale_factor' : 1,
+                'valid_range' : '-90, 90',
+                'units' : 'degrees_north'
+            },
+            {
+                'name' : 'longitude',
+                'long_name' : 'longitude',
+                'add_offset' : 0,
+                'scale_factor' : 1,
+                'valid_range' : '-180, 180',
+                'units' : 'degrees_east'
             },]
         for variable in self.variables:
+            variable_dict = variable.copy()
+            variable_dict.pop('name', None)
             self.dataset[variable['name']] = BaseType(name=variable['name'],
                                               data=None,
                                               shape=(1440, 720, 2),
                                               dimensions=('lon', 'lat', 'part_of_day'),
                                               type=UInt16,
-                                              attributes=({
-                                                'long_name'     : variable['long_name'],
-                                                'add_offset'    : variable['add_offset'],
-                                                'scale_factor'  : variable['scale_factor'],
-                                                '_FillValue'    : variable['_FillValue'],
-                                                'units'         : variable['units']
-                                              }))
+                                              attributes=(
+                                                  variable_dict
+                                              ))
 
     def parse_constraints(self, environ):
         projection, selection = parse_qs(environ.get('QUERY_STRING', ''))
