@@ -1,30 +1,26 @@
 """A Pydap handler for binary SSMI files."""
 
 import os
-import csv
 import re
-import time
-import copy
-from stat import ST_MTIME
-from email.utils import formatdate
-import json
 
 from pkg_resources import get_distribution
-
 from pydap.model import *
 from pydap.handlers.lib import BaseHandler
 from pydap.handlers.helper import constrain
 from pydap.exceptions import OpenFileError
-#from pydap.parsers.das import add_attributes
-
+import numpy as np
+import struct
 
 class BinarySsmiHandler(BaseHandler):
+
+    CHUNK_SIZE = 1024
 
     __version__ = get_distribution("pydap.handlers.binary.ssmi").version
     extensions = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}[\.gz]?$", re.IGNORECASE)
 
     def __init__(self, filepath):
         BaseHandler.__init__(self)
+        self.filepath = filepath
         self.filename = os.path.split(filepath)[1]
         self.dataset = GridType(name=self.filename, attributes={
             "SSMI_GLOBAL" : {
@@ -39,7 +35,7 @@ class BinarySsmiHandler(BaseHandler):
                 "original_filename" : self.filename,
             }
         })
-        variables = [{
+        self.variables = [{
                 'name' : 'time',
                 'long_name' : 'Time',
                 'add_offset' : 0,
@@ -80,9 +76,9 @@ class BinarySsmiHandler(BaseHandler):
                 '_FillValue' : 254,
                 'units' : 'mm/hr'
             },]
-        for variable in variables:
+        for variable in self.variables:
             self.dataset[variable['name']] = BaseType(name=variable['name'],
-                                              data=[range(1440),range(720),range(720*1440)],
+                                              data=None,
                                               shape=(1440, 720, 2),
                                               dimensions=('lon', 'lat', 'part_of_day'),
                                               type=UInt16,
@@ -95,8 +91,33 @@ class BinarySsmiHandler(BaseHandler):
                                               }))
 
     def parse_constraints(self, environ):
-        return self.dataset
-        #return constrain(self.dataset, environ.get('QUERY_STRING', ''))
+        try:
+            file = open(self.filepath, "rb")
+            bytes_read = np.frombuffer(file.read(), np.uint16)
+            file.close()
+        except Exception, exc:
+            message = 'Unable to open file %s: %s' % (self.filepath, exc)
+            raise OpenFileError(message)
+
+        if len(bytes_read):
+            for variable in self.variables:
+                index = self.variables.index(variable)
+                self.dataset[variable['name']].data = self.read_variable_data(bytes_read, index)
+                print self.dataset[variable['name']]
+        return constrain(self.dataset, environ.get('QUERY_STRING', ''))
+
+    def read_variable_data(self, bytes, var_index):
+        buf = np.empty(len(bytes), np.uint16)
+        cnt = 0
+        for i in range(1440):
+            for j in range(720):
+                for k in range(2):
+                    byteIndex = (1440 * j + i) + (1440 * 720 * var_index) + (1440 * 720 * 5 * k)
+                    print len(bytes), i, j, k, byteIndex
+                    buf[cnt] = bytes[byteIndex]
+                    cnt += 1
+        return buf
+
 
 if __name__ == "__main__":
     import sys
