@@ -7,13 +7,12 @@ from pkg_resources import get_distribution
 from pydap.model import *
 from pydap.handlers.lib import BaseHandler
 from pydap.handlers.helper import constrain
+from pydap.lib import parse_qs, walk
 from pydap.exceptions import OpenFileError
 import numpy as np
 import struct
 
 class BinarySsmiHandler(BaseHandler):
-
-    CHUNK_SIZE = 1024
 
     __version__ = get_distribution("pydap.handlers.binary.ssmi").version
     extensions = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}[\.gz]?$", re.IGNORECASE)
@@ -91,29 +90,38 @@ class BinarySsmiHandler(BaseHandler):
                                               }))
 
     def parse_constraints(self, environ):
-        try:
-            file = open(self.filepath, "rb")
-            bytes_read = np.frombuffer(file.read(), np.uint16)
-            file.close()
-        except Exception, exc:
-            message = 'Unable to open file %s: %s' % (self.filepath, exc)
-            raise OpenFileError(message)
+        projection, selection = parse_qs(environ.get('QUERY_STRING', ''))
 
-        if len(bytes_read):
-            for variable in self.variables:
-                index = self.variables.index(variable)
-                self.dataset[variable['name']].data = self.read_variable_data(bytes_read, index)
-                print self.dataset[variable['name']]
-        return constrain(self.dataset, environ.get('QUERY_STRING', ''))
+        if projection:
+            try:
+                file = open(self.filepath, "rb")
+                bytes_read = np.frombuffer(file.read(), np.uint8)
+                file.close()
+            except Exception, exc:
+                message = 'Unable to open file %s: %s' % (self.filepath, exc)
+                raise OpenFileError(message)
 
-    def read_variable_data(self, bytes, var_index):
+            for var in projection:
+                for variable in self.variables:
+                    var_name = var[1][0]
+                    if variable['name'] == var_name:
+                        slices = var[1][1]
+                        if len(slices) != 3:
+                            raise ValueError('Cannot obtain slices for %s. '
+                                             'Should be 3 slices, but %d found' % (var_name, len(slices)))
+                        print 'retrieving %s' % var_name, slices
+                        index = self.variables.index(variable)
+                        self.dataset[variable['name']].data = self.read_variable_data(bytes_read, index, slices)
+
+        return self.dataset
+
+    def read_variable_data(self, bytes, index, slices):
         buf = np.empty(len(bytes), np.uint16)
         cnt = 0
-        for i in range(1440):
-            for j in range(720):
-                for k in range(2):
-                    byteIndex = (1440 * j + i) + (1440 * 720 * var_index) + (1440 * 720 * 5 * k)
-                    print len(bytes), i, j, k, byteIndex
+        for i in range(1440)[slices[0]]:
+            for j in range(720)[slices[1]]:
+                for k in range(2)[slices[2]]:
+                    byteIndex = (1440 * j + i) + (1440 * 720 * index) + (1440 * 720 * 5 * k)
                     buf[cnt] = bytes[byteIndex]
                     cnt += 1
         return buf
