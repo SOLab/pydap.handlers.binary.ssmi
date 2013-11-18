@@ -3,6 +3,8 @@
 import os
 import re
 
+import gzip
+
 from pkg_resources import get_distribution
 from pydap.model import *
 from pydap.handlers.lib import BaseHandler
@@ -15,7 +17,7 @@ import struct
 class BinarySsmiHandler(BaseHandler):
 
     __version__ = get_distribution("pydap.handlers.binary.ssmi").version
-    extensions = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}[\.gz]?$", re.IGNORECASE)
+    extensions = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}(\.gz)?$", re.IGNORECASE)
 
     def __init__(self, filepath):
         BaseHandler.__init__(self)
@@ -94,7 +96,10 @@ class BinarySsmiHandler(BaseHandler):
 
         if projection:
             try:
-                file = open(self.filepath, "rb")
+                if self.filepath.endswith('.gz'):
+                    file = gzip.open(self.filepath, 'rb')
+                else:
+                    file = open(self.filepath, "rb")
                 bytes_read = np.frombuffer(file.read(), np.uint8)
                 file.close()
             except Exception, exc:
