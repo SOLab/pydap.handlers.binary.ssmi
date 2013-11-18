@@ -9,6 +9,7 @@ from pydap.handlers.lib import BaseHandler
 from pydap.handlers.helper import constrain
 from pydap.exceptions import OpenFileError
 import numpy as np
+
 import struct
 
 class BinarySsmiHandler(BaseHandler):
@@ -16,7 +17,7 @@ class BinarySsmiHandler(BaseHandler):
     CHUNK_SIZE = 1024
 
     __version__ = get_distribution("pydap.handlers.binary.ssmi").version
-    extensions = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}[\.gz]?$", re.IGNORECASE)
+    extensions = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}(\.gz)?$", re.IGNORECASE)
 
     def __init__(self, filepath):
         BaseHandler.__init__(self)
@@ -92,8 +93,12 @@ class BinarySsmiHandler(BaseHandler):
 
     def parse_constraints(self, environ):
         try:
-            file = open(self.filepath, "rb")
-            bytes_read = np.frombuffer(file.read(), np.uint16)
+            if self.filepath.endswith('.gz'):
+                import gzip
+                file = gzip.open(self.filepath, 'rb')
+            else:
+                file = open(self.filepath, "rb")
+            bytes_read = np.frombuffer(file.read(), np.uint8)
             file.close()
         except Exception, exc:
             message = 'Unable to open file %s: %s' % (self.filepath, exc)
@@ -113,7 +118,7 @@ class BinarySsmiHandler(BaseHandler):
             for j in range(720):
                 for k in range(2):
                     byteIndex = (1440 * j + i) + (1440 * 720 * var_index) + (1440 * 720 * 5 * k)
-                    print len(bytes), i, j, k, byteIndex
+                    # print len(bytes), i, j, k, byteIndex
                     buf[cnt] = bytes[byteIndex]
                     cnt += 1
         return buf
