@@ -55,7 +55,7 @@ class BinarySsmiHandler(BaseHandler):
                     'scale_factor' : 6,
                     '_FillValue' : 254,
                     'units' : 'minutes',
-                    'coordinates': 'latitude longitude'
+                    'coordinates': 'lon lat'
                 }
             ),
             BaseType(
@@ -70,6 +70,7 @@ class BinarySsmiHandler(BaseHandler):
                     'scale_factor' : 0.2,
                     '_FillValue' : 254,
                     'units' : 'm/sec',
+                    'coordinates': 'lon lat'
                 }
             ),
             BaseType(
@@ -84,7 +85,7 @@ class BinarySsmiHandler(BaseHandler):
                     'scale_factor' : 0.3,
                     '_FillValue' : 254,
                     'units' : 'mm',
-                    'coordinates': 'latitude longitude'
+                    'coordinates': 'lon lat'
                 })
             ),
             BaseType(
@@ -99,7 +100,7 @@ class BinarySsmiHandler(BaseHandler):
                     'scale_factor' : 0.01,
                     '_FillValue' : 254,
                     'units' : 'mm',
-                    'coordinates': 'latitude longitude'
+                    'coordinates': 'lon lat'
                 })
             ),
 
@@ -115,24 +116,9 @@ class BinarySsmiHandler(BaseHandler):
                     'scale_factor' : 0.1,
                     '_FillValue' : 254,
                     'units' : 'mm/hr',
-                    'coordinates': 'latitude longitude'
+                    'coordinates': 'lon lat'
                 })
             )]
-
-        latVar = BaseType(
-            name='lat',
-            data=None,
-            shape=(720,),
-            dimensions=('lat',),
-            type=Float32,
-            attributes=({
-                'long_name' : 'latitude',
-                # 'add_offset' : 0,
-                # 'scale_factor' : 1,
-                'valid_range' : '-90, 90',
-                'units' : 'degrees_north'
-            })
-        )
 
         lonVar = BaseType(
             name='lon',
@@ -146,6 +132,21 @@ class BinarySsmiHandler(BaseHandler):
                 # 'scale_factor' : 1,
                 'valid_range' : '-180, 180',
                 'units' : 'degrees_east'
+            })
+        )
+
+        latVar = BaseType(
+            name='lat',
+            data=None,
+            shape=(720,),
+            dimensions=('lat',),
+            type=Float32,
+            attributes=({
+                'long_name' : 'latitude',
+                # 'add_offset' : 0,
+                # 'scale_factor' : 1,
+                'valid_range' : '-90, 90',
+                'units' : 'degrees_north'
             })
         )
 
@@ -164,39 +165,22 @@ class BinarySsmiHandler(BaseHandler):
             })
         )
 
-        self.dataset['lat'] = latVar
         self.dataset['lon'] = lonVar
+        self.dataset['lat'] = latVar
         self.dataset['part_of_day'] = partVar
 
         for variable in self.variables:
-            # variable_dict = variable.copy()
-            # variable_dict.pop('name', None)
-            # _dim = ('lon', 'lat', 'part_of_day')
-            # _shape=(1440, 720, 2)
-            # _type = UInt16
-            #
-            # if variable['name'] == 'lat':
-            #     _dim = ('lat',)
-            #     _shape = (720,)
-            #     _type = Float32
-            # elif variable['name'] == 'lon':
-            #     _dim = ('lon',)
-            #     _shape = (1440,)
-            #     _type = Float32
-            # elif variable['name'] == 'part_of_day':
-            #     _dim = ('part_of_day',)
-            #     _shape = (2,)
             print variable.name
             g = GridType(name=variable.name)
             g[variable.name] = variable
 
-            g['lat'] = latVar.__deepcopy__()
             g['lon'] = lonVar.__deepcopy__()
+            g['lat'] = latVar.__deepcopy__()
             g['part_of_day'] = partVar.__deepcopy__()
             g.attributes = variable.attributes
 
             self.dataset[variable.name] = g
-            self.dataset[variable.name].attributes = variable.attributes
+            # self.dataset[variable.name].attributes = variable.attributes
 
 
     def parse_constraints(self, environ):
@@ -214,15 +198,13 @@ class BinarySsmiHandler(BaseHandler):
                 raise OpenFileError(message)
 
             for var in projection:
-                import ipdb
-                ipdb.set_trace()
                 var_name = var[0][0]
 
                 if var_name in ['lat', 'lon', 'part_of_day']:
-                    if var_name == 'lat':
-                        self.dataset['lat'].data = self.read_variable_lat()
-                    elif var_name == 'lon':
+                    if var_name == 'lon':
                         self.dataset['lon'].data = self.read_variable_lon()
+                    elif var_name == 'lat':
+                        self.dataset['lat'].data = self.read_variable_lat()
                     elif var_name == 'part_of_day':
                         self.dataset['part_of_day'].data = self.read_variable_part()
                 else:
@@ -240,12 +222,17 @@ class BinarySsmiHandler(BaseHandler):
                             # import ipdb
                             # ipdb.set_trace()
                             print "==> "+var_name+"!!!!!!!!!!!!", variable.name
+
+                            self.dataset[variable.name]['lon'].data = self.read_variable_lon()
+                            self.dataset[variable.name]['lat'].data = self.read_variable_lat()
+                            self.dataset[variable.name]['part_of_day'].data = self.read_variable_part()
+
                             self.dataset[variable.name][variable.name].data = self.read_variable_data(bytes_read, index, slices)
                             print "=====>", len(self.dataset[variable.name][variable.name].data), self.dataset[variable.name][variable.name].data
 
-                            self.dataset[variable.name]['lat'].data = self.read_variable_lat()
-                            self.dataset[variable.name]['lon'].data = self.read_variable_lon()
-                            self.dataset[variable.name]['part_of_day'].data = self.read_variable_part()
+                            # self.dataset[variable.name]['lat'].data = self.read_variable_lat()
+                            # self.dataset[variable.name]['lon'].data = self.read_variable_lon()
+                            # self.dataset[variable.name]['part_of_day'].data = self.read_variable_part()
 
         # return self.dataset
 
