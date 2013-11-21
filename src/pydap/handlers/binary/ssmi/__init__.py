@@ -170,7 +170,7 @@ class BinarySsmiHandler(BaseHandler):
         self.dataset['part_of_day'] = partVar
 
         for variable in self.variables:
-            print variable.name
+            # print variable.name
             g = GridType(name=variable.name)
             g[variable.name] = variable
 
@@ -185,6 +185,7 @@ class BinarySsmiHandler(BaseHandler):
 
     def parse_constraints(self, environ):
         projection, selection = parse_qs(environ.get('QUERY_STRING', ''))
+        # print "==> ", projection, selection
         if projection:
             try:
                 if self.filepath.endswith('gz'):
@@ -198,7 +199,7 @@ class BinarySsmiHandler(BaseHandler):
                 raise OpenFileError(message)
 
             for var in projection:
-                var_name = var[0][0]
+                var_name = var[len(var)-1][0]
 
                 if var_name in ['lat', 'lon', 'part_of_day']:
                     if var_name == 'lon':
@@ -210,7 +211,7 @@ class BinarySsmiHandler(BaseHandler):
                 else:
                     for variable in self.variables:
                         if variable.name == var_name:
-                            slices = var[0][1]
+                            slices = var[len(var)-1][1]
                             if len(slices) != 3:
                                 raise ValueError('Cannot obtain slices for %s. '
                                                  'Should be 3 slices, but %d found' % (var_name, len(slices)))
@@ -219,22 +220,12 @@ class BinarySsmiHandler(BaseHandler):
                             for i in range(len(self.variables)):
                                 if self.variables[i].name == variable.name:
                                     index = i
-                            # import ipdb
-                            # ipdb.set_trace()
-                            print "==> "+var_name+"!!!!!!!!!!!!", variable.name
 
                             self.dataset[variable.name]['lon'].data = self.read_variable_lon()
                             self.dataset[variable.name]['lat'].data = self.read_variable_lat()
                             self.dataset[variable.name]['part_of_day'].data = self.read_variable_part()
 
                             self.dataset[variable.name][variable.name].data = self.read_variable_data(bytes_read, index, slices)
-                            print "=====>", len(self.dataset[variable.name][variable.name].data), self.dataset[variable.name][variable.name].data
-
-                            # self.dataset[variable.name]['lat'].data = self.read_variable_lat()
-                            # self.dataset[variable.name]['lon'].data = self.read_variable_lon()
-                            # self.dataset[variable.name]['part_of_day'].data = self.read_variable_part()
-
-        # return self.dataset
 
         dataset_copy = copy.deepcopy(self.dataset)
         if projection:
@@ -246,64 +237,27 @@ class BinarySsmiHandler(BaseHandler):
             for key in dataset_copy.keys():
                 if not key in val_arr:
                     dataset_copy.pop(key, None)
-        # if projection:
-        #     import ipdb
-        #     ipdb.set_trace()
         return dataset_copy
 
     def read_variable_lat(self):
-        latMin = 0
         latMax = 719
-
-        # buf = np.empty(len(bytes), np.uint16)
-        # cnt = 0
-
-        # for i in range(1440):
-        #     for j in range(720):
-        #         for k in range(2):
-        #             latValue = -89.875 + 0.25 * (latMin + j)
-        #             # byteIndex = (1440 * j + i) + (1440 * 720 * 2) + (1440 * 720 * 5 * k)
-        #             # print len(bytes), i, j, k, byteIndex
-        #             if latValue > 100:
-        #                 print "=========ERROR============"
-        #             buf[cnt] = latValue
-        #             cnt += 1
-
-        buf = np.empty(719+1, np.float32)
+        buf = np.empty(latMax+1, np.float32)
         cnt = 0
 
         for j in range(720):
-            latValue = -89.875 + 0.25 * (latMin + j)
-            # byteIndex = (1440 * j + i) + (1440 * 720 * 2) + (1440 * 720 * 5 * k)
-            # print len(bytes), i, j, k, byteIndex
+            latValue = 0.25 * j - 90.125
             buf[cnt] = latValue
             cnt += 1
 
         return buf
 
     def read_variable_lon(self):
-        lonMin = 0
         lonMax = 1439
-
-        # buf = np.empty(len(bytes), np.uint16)
-        # cnt = 0
-        # for i in range(1440):
-        #     for j in range(720):
-        #         for k in range(2):
-        #             lonValue = 0.25 * (lonMin + i)
-        #             if lonValue > 180:
-        #                 lonValue -= 180
-        #             # print len(bytes), i, j, k, byteIndex
-        #             buf[cnt] = lonValue
-        #             cnt += 1
 
         buf = np.empty(lonMax+1, np.float32)
         cnt = 0
         for i in range(1440):
-            lonValue = 0.25 * (lonMin + i)
-            if lonValue > 180:
-                lonValue -= 180
-            # print len(bytes), i, j, k, byteIndex
+            lonValue = 0.25 * (i+1) - 0.125
             buf[cnt] = lonValue
             cnt += 1
 
@@ -318,15 +272,12 @@ class BinarySsmiHandler(BaseHandler):
         return buf
 
     def read_variable_data(self, bytes, index, slices):
-        # buf_len = (slices[0].stop - slices[0].start)*(slices[1].stop - slices[1].start)*(slices[2].stop - slices[2].start)
-        buf = np.empty(len(bytes), np.uint16)
-        cnt = 0
+        buf = np.empty((1440, 720, 2), np.uint16)
         for i in range(1440)[slices[0]]:
             for j in range(720)[slices[1]]:
                 for k in range(2)[slices[2]]:
                     byteIndex = (1440 * j + i) + (1440 * 720 * index) + (1440 * 720 * 5 * k)
-                    buf[cnt] = bytes[byteIndex]
-                    cnt += 1
+                    buf[i][j][k] = bytes[byteIndex]
         return buf
 
 
