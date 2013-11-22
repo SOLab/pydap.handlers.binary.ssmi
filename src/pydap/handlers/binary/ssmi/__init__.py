@@ -232,7 +232,7 @@ class BinarySsmiHandler(BaseHandler):
             val_arr = []
             for proj in projection:
                 val_arr.append(proj[0][0])
-            print "val_arr = ", val_arr
+
             for key in dataset_copy.keys():
                 if not key in val_arr:
                     dataset_copy.pop(key, None)
@@ -281,14 +281,48 @@ class BinarySsmiHandler(BaseHandler):
 
         return buf
 
-# def _test():
-#     ssmi = BinarySsmiHandler()
+def _test():
+
+    test_values = {}
+    test_values['wspd'] = [253.00, 253.00, 6.40, 5.80, 5.60]
+    test_values['vapor'] = [253.00, 253.00, 60.60, 60.90, 60.30]
+    test_values['cloud'] = [253.00, 253.00, 0.07, 0.08, 0.06]
+    test_values['rain'] = [253.00, 253.00, 0.00, 0.00, 0.00]
+
+    values = ['wspd', 'vapor', 'cloud', 'rain']
+
+    application = BinarySsmiHandler("../../../../../test/f10_19950120v7.gz")
+    environ = {}
+
+    for value in values:
+        environ['QUERY_STRING'] = value+"[171:1:171][273:1:277][0]"
+        dd = application.parse_constraints(environ)
+
+        scale_factor = dd[value].attributes['scale_factor']
+        add_offset = dd[value].attributes['add_offset']
+
+        _value_arr = dd[value][value][:]
+        _shape = _value_arr.shape
+
+        for j in range(_shape[1]):
+            for i in range(_shape[0]):
+                for k in range(_shape[2]):
+                    if _value_arr[i][j][k]> 250:
+                        if _value_arr[i][j][k] != test_values[value][j]:
+                            print value, ": failed"
+                            return 1
+                    else:
+                        if round((_value_arr[i][j][k]*scale_factor + add_offset)*1000)/1000.0 != test_values[value][j]:
+                            print value, ": failed"
+                            return 1
+        print value, ": ok"
+    print "OK (All %d tests)" %len(values)
 
 if __name__ == "__main__":
-    import sys
-    from werkzeug.serving import run_simple
+    _test()
 
-    # _test()
+    # import sys
+    # from werkzeug.serving import run_simple
 
     # from pydap.wsgi.ssf import ServerSideFunctions
     # application = ServerSideFunctions(application)
