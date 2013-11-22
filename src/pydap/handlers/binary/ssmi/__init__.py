@@ -17,7 +17,7 @@ import copy
 
 class BinarySsmiHandler(BaseHandler):
 
-    __version__ = get_distribution("pydap.handlers.binary.ssmi").version
+    # __version__ = get_distribution("pydap.handlers.binary.ssmi").version
     extensions = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}(\.gz)?$", re.IGNORECASE)
 
     def __init__(self, filepath):
@@ -185,7 +185,6 @@ class BinarySsmiHandler(BaseHandler):
 
     def parse_constraints(self, environ):
         projection, selection = parse_qs(environ.get('QUERY_STRING', ''))
-        # print "==> ", projection, selection
         if projection:
             try:
                 if self.filepath.endswith('gz'):
@@ -221,9 +220,9 @@ class BinarySsmiHandler(BaseHandler):
                                 if self.variables[i].name == variable.name:
                                     index = i
 
-                            self.dataset[variable.name]['lon'].data = self.read_variable_lon()
-                            self.dataset[variable.name]['lat'].data = self.read_variable_lat()
-                            self.dataset[variable.name]['part_of_day'].data = self.read_variable_part()
+                            self.dataset[variable.name]['lon'].data = self.read_variable_lon(slices[0])
+                            self.dataset[variable.name]['lat'].data = self.read_variable_lat(slices[1])
+                            self.dataset[variable.name]['part_of_day'].data = self.read_variable_part(slices[2])
 
                             self.dataset[variable.name][variable.name].data = self.read_variable_data(bytes_read, index, slices)
 
@@ -239,55 +238,58 @@ class BinarySsmiHandler(BaseHandler):
                     dataset_copy.pop(key, None)
         return dataset_copy
 
-    def read_variable_lat(self):
+    def read_variable_lat(self, slices_lat):
         latMax = 719
-        buf = np.empty(latMax+1, np.float32)
+        buf = np.empty(len(range(latMax+1)[slices_lat]), np.float32)
         cnt = 0
 
-        for j in range(720):
+        for j in range(720)[slices_lat]:
             latValue = 0.25 * j - 90.125
             buf[cnt] = latValue
             cnt += 1
 
         return buf
 
-    def read_variable_lon(self):
+    def read_variable_lon(self, slices_lot):
         lonMax = 1439
 
-        buf = np.empty(lonMax+1, np.float32)
+        buf = np.empty(len(range(lonMax+1)[slices_lot]), np.float32)
         cnt = 0
-        for i in range(1440):
+        for i in range(1440)[slices_lot]:
             lonValue = 0.25 * (i+1) - 0.125
             buf[cnt] = lonValue
             cnt += 1
 
         return buf
 
-    def read_variable_part(self):
-        buf = np.empty(2, np.uint16)
+    def read_variable_part(self, slices_part):
+        buf = np.empty(len(range(2)[slices_part]), np.uint16)
         cnt = 0
-        for i in range(2):
+        for i in range(2)[slices_part]:
             buf[cnt] = i
             cnt += 1
         return buf
 
     def read_variable_data(self, bytes, index, slices):
-        buf = np.empty((1440, 720, 2), np.uint16)
+        buf = np.empty((len(range(1440)[slices[0]]), len(range(720)[slices[1]]), len(range(2)[slices[2]])), np.uint16)
+
         for i in range(1440)[slices[0]]:
             for j in range(720)[slices[1]]:
                 for k in range(2)[slices[2]]:
                     byteIndex = (1440 * j + i) + (1440 * 720 * index) + (1440 * 720 * 5 * k)
-                    buf[i][j][k] = bytes[byteIndex]
+                    buf[i-slices[0].start][j-slices[1].start][k-slices[2].start] = bytes[byteIndex]
+
         return buf
 
+# def _test():
+#     ssmi = BinarySsmiHandler()
 
 if __name__ == "__main__":
     import sys
     from werkzeug.serving import run_simple
 
-    #_test()
+    # _test()
 
-    application = BinarySsmiHandler(sys.argv[1])
-    from pydap.wsgi.ssf import ServerSideFunctions
-    application = ServerSideFunctions(application)
-    run_simple('localhost', 8001, application, use_reloader=True)
+    # from pydap.wsgi.ssf import ServerSideFunctions
+    # application = ServerSideFunctions(application)
+    # run_simple('localhost', 8001, application, use_reloader=True)
