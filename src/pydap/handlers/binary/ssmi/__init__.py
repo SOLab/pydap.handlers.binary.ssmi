@@ -20,6 +20,8 @@ class BinarySsmiHandler(BaseHandler):
     # __version__ = get_distribution("pydap.handlers.binary.ssmi").version
     extensions = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}(\.gz)?$", re.IGNORECASE)
 
+    # extensions = re.compile(r".*f[0-9]{2}_[0-9]{6,8}[0-9a-z]{2}(\.gz)?$", re.IGNORECASE)
+
     def __init__(self, filepath):
         BaseHandler.__init__(self)
         self.filepath = filepath
@@ -199,14 +201,15 @@ class BinarySsmiHandler(BaseHandler):
 
             for var in projection:
                 var_name = var[len(var)-1][0]
+                slices = var[len(var)-1][1]
 
                 if var_name in ['lat', 'lon', 'part_of_day']:
                     if var_name == 'lon':
-                        self.dataset['lon'].data = self.read_variable_lon()
+                        self.dataset['lon'].data = self.read_variable_lon(slices[0])
                     elif var_name == 'lat':
-                        self.dataset['lat'].data = self.read_variable_lat()
+                        self.dataset['lat'].data = self.read_variable_lat(slices[0])
                     elif var_name == 'part_of_day':
-                        self.dataset['part_of_day'].data = self.read_variable_part()
+                        self.dataset['part_of_day'].data = self.read_variable_part(slices[0])
                 else:
                     for variable in self.variables:
                         if variable.name == var_name:
@@ -238,31 +241,31 @@ class BinarySsmiHandler(BaseHandler):
                     dataset_copy.pop(key, None)
         return dataset_copy
 
-    def read_variable_lat(self, slices_lat):
+    def read_variable_lat(self, slices_lat=slice(720)):
         latMax = 719
         buf = np.empty(len(range(latMax+1)[slices_lat]), np.float32)
         cnt = 0
 
         for j in range(720)[slices_lat]:
-            latValue = 0.25 * j - 90.125
+            latValue = 0.25 * j - 89.875
             buf[cnt] = latValue
             cnt += 1
 
         return buf
 
-    def read_variable_lon(self, slices_lot):
+    def read_variable_lon(self, slices_lot=slice(1440)):
         lonMax = 1439
 
         buf = np.empty(len(range(lonMax+1)[slices_lot]), np.float32)
         cnt = 0
         for i in range(1440)[slices_lot]:
-            lonValue = 0.25 * (i+1) - 0.125
+            lonValue = 0.25 * i + 0.125
             buf[cnt] = lonValue
             cnt += 1
 
         return buf
 
-    def read_variable_part(self, slices_part):
+    def read_variable_part(self, slices_part=slice(2)):
         buf = np.empty(len(range(2)[slices_part]), np.uint16)
         cnt = 0
         for i in range(2)[slices_part]:
