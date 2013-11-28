@@ -18,9 +18,11 @@ import copy
 class BinarySsmiHandler(BaseHandler):
 
     # __version__ = get_distribution("pydap.handlers.binary.ssmi").version
-    extensions = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}(\.gz)?$", re.IGNORECASE)
+    extensions = re.compile(r".*f[0-9]{2}_[0-9]{6,8}[0-9a-z]{2}(_d3d)?(\.gz)?$", re.IGNORECASE)
 
-    # extensions = re.compile(r".*f[0-9]{2}_[0-9]{6,8}[0-9a-z]{2}(\.gz)?$", re.IGNORECASE)
+    daily = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}(\.gz)?$", re.IGNORECASE)
+    # day_3 = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}_d3d(\.gz)?$", re.IGNORECASE)
+    # monthly = re.compile(r".*f[0-9]{2}_[0-9]{6}[0-9a-z]{2}(\.gz)?$", re.IGNORECASE)
 
     def __init__(self, filepath):
         BaseHandler.__init__(self)
@@ -40,11 +42,19 @@ class BinarySsmiHandler(BaseHandler):
             }
         })
 
+        time_variable = False
+
+        if 'weeks' in filepath or self.daily.match(self.filename):
+             time_variable = True
+
+
         _dim = ('lon', 'lat', 'part_of_day')
         _shape = (1440, 720, 2)
         _type = UInt16
 
-        self.variables = [
+        self.variables = []
+        if time_variable:
+            self.variables.append(
             BaseType(
                 name='time',
                 data=None,
@@ -59,8 +69,9 @@ class BinarySsmiHandler(BaseHandler):
                     'units' : 'minutes',
                     'coordinates': 'lon lat'
                 }
-            ),
-            BaseType(
+            ))
+
+        self.variables.append(BaseType(
                 name='wspd',
                 data=None,
                 shape=_shape,
@@ -74,8 +85,9 @@ class BinarySsmiHandler(BaseHandler):
                     'units' : 'm/sec',
                     'coordinates': 'lon lat'
                 }
-            ),
-            BaseType(
+        ))
+
+        self.variables.append(BaseType(
                 name='vapor',
                 data=None,
                 shape=_shape,
@@ -89,8 +101,9 @@ class BinarySsmiHandler(BaseHandler):
                     'units' : 'mm',
                     'coordinates': 'lon lat'
                 })
-            ),
-            BaseType(
+        ))
+
+        self.variables.append(BaseType(
                 name='cloud',
                 data=None,
                 shape=_shape,
@@ -104,9 +117,9 @@ class BinarySsmiHandler(BaseHandler):
                     'units' : 'mm',
                     'coordinates': 'lon lat'
                 })
-            ),
+        ))
 
-            BaseType(
+        self.variables.append(BaseType(
                 name='rain',
                 data=None,
                 shape=_shape,
@@ -120,7 +133,7 @@ class BinarySsmiHandler(BaseHandler):
                     'units' : 'mm/hr',
                     'coordinates': 'lon lat'
                 })
-            )]
+        ))
 
         lonVar = BaseType(
             name='lon',
