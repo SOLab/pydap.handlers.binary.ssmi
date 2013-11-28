@@ -217,13 +217,22 @@ class BinarySsmiHandler(BaseHandler):
 
                 if var_name in ['lat', 'lon', 'part_of_day']:
                     if var_name == 'lon':
-                        lon_slice = slice(1440) if not len(slices) else slices[0]
+                        if len(slices):
+                            lon_slice = slices[0]
+                        else:
+                            lon_slice = slice(1440)
                         self.dataset['lon'].data = self.read_variable_lon(lon_slice)
                     elif var_name == 'lat':
-                        lat_slice = slice(720) if not len(slices) else slices[0]
+                        if len(slices):
+                            lat_slice = slices[0]
+                        else:
+                            lat_slice = slice(720)
                         self.dataset['lat'].data = self.read_variable_lat(lat_slice)
                     elif var_name == 'part_of_day':
-                        part_slice = slice(2) if not len(slices) else slices[0]
+                        if len(slices):
+                            part_slice = slices[0]
+                        else:
+                            part_slice = slice(2)
                         self.dataset['part_of_day'].data = self.read_variable_part(part_slice)
                 else:
                     for variable in self.variables:
