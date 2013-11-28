@@ -44,9 +44,8 @@ class BinarySsmiHandler(BaseHandler):
 
         time_variable = False
 
-        if 'weeks' in filepath or self.daily.match(self.filename):
+        if self.daily.match(self.filename) and not 'weeks' in filepath:
              time_variable = True
-
 
         _dim = ('lon', 'lat', 'part_of_day')
         _shape = (1440, 720, 2)
@@ -297,8 +296,7 @@ class BinarySsmiHandler(BaseHandler):
 
         return buf
 
-def _test():
-
+def daily_test():
     test_values = {}
     test_values['time'] = [7.10, 7.10, 7.10, 7.10, 7.10]
     test_values['wspd'] = [253.00, 253.00, 6.40, 5.80, 5.60]
@@ -309,6 +307,54 @@ def _test():
     values = ['time', 'wspd', 'vapor', 'cloud', 'rain']
 
     application = BinarySsmiHandler("../../../../../test/f10_19950120v7.gz")
+
+    print "test for daily %s" %application.filename
+    compare_test_value(test_values, values, application)
+
+def day_3_test():
+    test_values = {}
+    test_values['wspd'] = [253.00, 251.00, 6.40, 4.60, 4.60]
+    test_values['vapor'] = [253.00, 65.70, 63.00, 62.70, 61.50]
+    test_values['cloud'] = [253.00, 0.45, 0.21, 0.07, 0.05]
+    test_values['rain'] = [253.00, 0.50, 0.10, 0.00, 0.00]
+
+    values = ['wspd', 'vapor', 'cloud', 'rain']
+
+    application = BinarySsmiHandler("../../../../../test/f10_19950120v7_d3d.gz")
+
+    print "test for 3-day %s" %application.filename
+    compare_test_value(test_values, values, application)
+
+def weekly_test():
+    test_values = {}
+    # test_values['time'] = [7.10, 7.10, 7.10, 7.10, 7.10]
+    test_values['wspd'] = [253.00, 4.80, 5.40, 5.00, 4.80]
+    test_values['vapor'] = [253.00, 52.20, 58.50, 58.20, 57.60]
+    test_values['cloud'] = [253.00, 0.23, 0.34, 0.20, 0.19]
+    test_values['rain'] = [253.00, 0.30, 0.80, 0.40, 0.30]
+
+    values = ['wspd', 'vapor', 'cloud', 'rain']
+
+    application = BinarySsmiHandler("../../../../../test/weeks/f10_19950121v7.gz")
+
+    print "test for weekly %s" %application.filename
+    compare_test_value(test_values, values, application)
+
+def monthly_test():
+    test_values = {}
+    test_values['wspd'] = [253.00, 5.40, 5.80, 5.40, 5.20]
+    test_values['vapor'] = [253.00, 47.10, 47.40, 48.30, 48.30]
+    test_values['cloud'] = [253.00, 0.15, 0.11, 0.12, 0.16]
+    test_values['rain'] = [253.00, 0.20, 0.20, 0.20, 0.50]
+
+    values = ['wspd', 'vapor', 'cloud', 'rain']
+
+    application = BinarySsmiHandler("../../../../../test/f10_199501v7.gz")
+
+    print "test for monthly %s" %application.filename
+    compare_test_value(test_values, values, application)
+
+def compare_test_value(test_values, values, application):
     environ = {}
 
     for value in values:
@@ -328,17 +374,25 @@ def _test():
                 for k in range(_shape[2]):
                     _value = _value_arr[i][j][k]
                     if _value > 250:
-                        print _value, test_values[value][j]
+                        # print _value, test_values[value][j]
                         if _value != test_values[value][j]:
                             print value, ": failed"
                             return 1
                     else:
-                        print round((_value*scale_factor + add_offset)*1000)/1000.0, test_values[value][j]
+                        # print round((_value*scale_factor + add_offset)*1000)/1000.0, test_values[value][j]
                         if round((_value*scale_factor + add_offset)*1000)/1000.0 != test_values[value][j]:
                             print value, ": failed"
                             return 1
-        print value, ": ok\n"
+        print value, ": ok"
+    print
     print "OK (All %d tests)" %len(values)
+    print
+
+def _test():
+    daily_test()
+    day_3_test()
+    weekly_test()
+    monthly_test()
 
 if __name__ == "__main__":
     _test()
