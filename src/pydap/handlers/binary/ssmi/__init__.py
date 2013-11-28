@@ -220,27 +220,28 @@ class BinarySsmiHandler(BaseHandler):
                         if len(slices):
                             lon_slice = slices[0]
                         else:
-                            lon_slice = slice(1440)
+                            lon_slice = slice(0, 1440, 1)
                         self.dataset['lon'].data = self.read_variable_lon(lon_slice)
                     elif var_name == 'lat':
                         if len(slices):
                             lat_slice = slices[0]
                         else:
-                            lat_slice = slice(720)
+                            lat_slice = slice(0, 720, 1)
                         self.dataset['lat'].data = self.read_variable_lat(lat_slice)
                     elif var_name == 'part_of_day':
                         if len(slices):
                             part_slice = slices[0]
                         else:
-                            part_slice = slice(2)
+                            part_slice = slice(0, 2, 1)
                         self.dataset['part_of_day'].data = self.read_variable_part(part_slice)
                 else:
                     for variable in self.variables:
                         if variable.name == var_name:
                             slices = var[len(var)-1][1]
                             if len(slices) != 3:
-                                raise ValueError('Cannot obtain slices for %s. '
-                                                 'Should be 3 slices, but %d found' % (var_name, len(slices)))
+                                slices = [slice(0, 1440, 1), slice(0, 720, 1), slice(0, 2, 1)]
+                                # raise ValueError('Cannot obtain slices for %s. '
+                                #                  'Should be 3 slices, but %d found' % (var_name, len(slices)))
                             print 'retrieving %s' % var_name, slices
                             index = 0
                             for i in range(len(self.variables)):
