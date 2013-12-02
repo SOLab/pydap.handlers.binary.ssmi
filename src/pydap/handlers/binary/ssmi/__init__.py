@@ -21,13 +21,22 @@ class BinarySsmiHandler(BaseHandler):
     extensions = re.compile(r".*f[0-9]{2}_[0-9]{6,8}[0-9a-z]{2}(_d3d)?(\.gz)?$", re.IGNORECASE)
 
     daily = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}(\.gz)?$", re.IGNORECASE)
-    # day_3 = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}_d3d(\.gz)?$", re.IGNORECASE)
+    day_3 = re.compile(r".*f[0-9]{2}_[0-9]{8}[0-9a-z]{2}_d3d(\.gz)?$", re.IGNORECASE)
     # monthly = re.compile(r".*f[0-9]{2}_[0-9]{6}[0-9a-z]{2}(\.gz)?$", re.IGNORECASE)
 
     def __init__(self, filepath):
         BaseHandler.__init__(self)
         self.filepath = filepath
         self.filename = os.path.split(filepath)[1]
+
+        temporal_resolution = "Monthly"
+        if 'weeks' in filepath:
+            temporal_resolution = "Weekly"
+        elif self.daily.match(self.filename):
+            temporal_resolution = "Daily"
+        elif self.day_3.match(self.filename):
+            temporal_resolution = "3-Day"
+
         self.dataset = DatasetType(name=self.filename, attributes={
             "SSMI_GLOBAL" : {
                 "CONVENTIONS" : "COARDS",
@@ -36,7 +45,7 @@ class BinarySsmiHandler(BaseHandler):
                 "producer_agency" : "Remote Sensing Systems",
                 "product_version" : "Version-7",
                 "spatial_resolution" : "0.25 degree",
-                "temporal_resolution" : "Daily",
+                "temporal_resolution" : temporal_resolution,
                 "instrument" : "SSMIS",
                 "original_filename" : self.filename,
             }
